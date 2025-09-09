@@ -6,6 +6,9 @@
 - Database - data_warehouse
 - Tables - raw.organizations, raw.members & raw.events
 
+## How to Run
+- Activate the the virtual environment first `source .venv/bin/activate`
+
 ## Progress So Far
 - ### Created staging models - 
     #### `stg_organizations.sql`
@@ -85,5 +88,5 @@
     - These factors affect calculations like the **Monthly Utilization Rate**, potentially leading to **overcounting or undercounting** at the organization or province level.
 
 ## Note 
-- More detailed information can be found at this link with relevant screenshots 
+- More detailed and technical information can be found at this link with relevant screenshots 
 - https://www.notion.so/Project-Progress-and-Data-Verification-Notes-2685228f921f8022a211cd5b5ac94d17?source=copy_link
