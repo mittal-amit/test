@@ -3,7 +3,7 @@
 This tasks built with dbt. It focuses on **clean staging**, **incremental dimensions**, an **SCD2 snapshot** on member province, and a **fact table for events** used to compute metrics like Monthly Utilization Rate.
 
 > For screenshots, validation SQL, and deeper notes, see the Notion doc:  
-> [Project Progress and Data Verification Notes - Notion Link] — https://www.notion.so/Project-Progress-and-Data-Verification-Notes-2685228f921f8022a211cd5b5ac94d17?source=copy_link
+> [Project Progress and Data Verification Notes - Notion Link](https://www.notion.so/Project-Progress-and-Data-Verification-Notes-2685228f921f8022a211cd5b5ac94d17?source=copy_link)
 
 ---
 
