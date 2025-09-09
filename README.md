@@ -1,92 +1,119 @@
-## Context
-- The goal of this work is to build a clean analytics layer on top of the **Organizations**, **Members**, and **Events** datasets.
-- This involves **identifying data quality issues, designing appropriate staging and dimension models, and testing incremental and snapshot logic** to ensure historical accuracy (e.g., for utilization metrics).
+# Dialogue Analytics Layer (dbt + DuckDB)
 
-## About Data
-- Database - data_warehouse
-- Tables - raw.organizations, raw.members & raw.events
+This tasks built with dbt. It focuses on **clean staging**, **incremental dimensions**, an **SCD2 snapshot** on member province, and a **fact table for events** used to compute metrics like Monthly Utilization Rate.
 
-## How to Run
-- Activate the the virtual environment first `source .venv/bin/activate`
+> For screenshots, validation SQL, and deeper notes, see the Notion doc:  
+> **Project Progress and Data Verification Notes** — https://www.notion.so/Project-Progress-and-Data-Verification-Notes-2685228f921f8022a211cd5b5ac94d17?source=copy_link
 
-## Progress So Far
-- ### Created staging models - 
-    #### `stg_organizations.sql`
-    - Added an extra column **`is_active`**, derived from the `churned_at` field:
-        - `is_active = true` when `churned_at` is `null`.
-        - `is_active = false` otherwise.
-    - Ensured `organization_id` is not null to maintain data quality.
+---
 
-    #### `stg_members.sql`
-    - Applied a condition to exclude invalid records by filtering out rows where `member_id` is null.
-    - Kept all relevant attributes (personal details, organization, eligibility, timestamps) intact for downstream use.
+## Quick Start
 
-    #### `stg_events.sql`
-    - Extracted structured columns from the nested JSON `data` field, making the dataset easier to use in downstream transformations.
-    - Renamed `timestamp` to `event_timestamp` for clarity and consistency.
+**Prereqs**
+- Python 3.10+
+- dbt-core 1.9.x, dbt-duckdb 1.9.x
+- DuckDB database initialized with `data_warehouse`
 
-- ### Created dimension models
-    #### `dim_organizations`
-    - Created as an **incremental table** to optimize performance and avoid full refreshes on each run.
-    - The model is designed to load only new or updated records based on the `loaded_at` column.
-    - This ensures that the table always reflects the latest snapshot of organizations while keeping historical records intact.
+**Setup**
+```bash
+# (optional) create venv
+python -m venv .venv
+# activate it
+source .venv/bin/activate
+# install project deps (pip/poetry as applicable)
+# pip install -r requirements.txt  # or: poetry install
+```
 
-    #### `dim_member_snapshot` (SCD2 on Province)
-    - Implemented as a **dbt snapshot** to track **slowly changing dimension (Type 2)** changes in the `province_of_residence`.
-    - Purpose: To ensure that **historical event attribution** (e.g., utilization rate by province) is always tied to the **correct province and organization** at the time of the event.
-    - Behavior:
-        - When a member’s **province_of_residence** changes, the snapshot logic:
-            1. **Closes the old record** by updating `valid_to` to the day before the change.
-            2. **Inserts a new record** with the updated province and sets `valid_from` to the change date.
-        - This preserves a **full history** of province changes.
-    - Example:
-        - Alice moves from **Ontario → Quebec**.
-        - `dim_member_snapshot` keeps both records:
-            - Ontario (valid_from = 2025-01-01, valid_to = 2025-09-09)
-            - Quebec (valid_from = 2025-09-10, valid_to = 9999-12-31)
+**Run**
+```bash
+# verify connection + profiles
+dbt debug
 
-- ### Created fact models
-    #### `fct_events`
-    The `fct_events` table consolidates all events from the `stg_events` staging table and links them with member-level information from the `dim_member_snapshot` table. This allows:
-    - Attribution of events to the **correct organization** and **province** at the time of the event.
-    - Accurate calculation of metrics like **Monthly Utilization Rate** and other member-level analytics.
-        
-    > ⚠️ Note: Some members are associated with multiple organizations. As a result, this fact table may contain duplicate events for a single member across different organizations.
+# build staging → snapshot → dims → facts
+dbt run -s stg
+dbt snapshot
+dbt run -s dim_organizations
+dbt run -s fct_events
+```
 
- - ### Testing
-    The testing has been performed which can be found in the Notion doucment with screenshots
+# tests
+A manual testing has been performed which can be found in the Notion doucment with screenshots.
 
+> Detailed test steps and sample SQL are documented in Notion (§3.4 **Testing**).
 
-## Metric Calculation Challenges
-- ### Members in Multiple Organization
-    - **Monthly Utilization Rate is calculated based on the number of members enrolled**, having a single member associated with multiple organizations can impact the calculation. 
-    - Organization-level utilization rates may be underestimated or overcounted because the denominator (members) could include duplicates
+---
 
-## Suggestions
-- ### Multiple Programs per Organization
-    - There are multiple rows with different program combinations
-    - If existing programs were combined, the created_at date might remain the same while the updated_at (or loaded_at) field is updated. This approach facilitates easier analysis when integrating with other datasets.
-        - `[employee_assistance, mental_health]` **and** `[primary_care, mental_health, employee_assistance]` = `[employee_assistance, mental_health, primary_care, mental_health, employee_assistance]`
+## Data Layout
 
-- ### Organization–Member Hierarchy
+- **Warehouse**: `data_warehouse`
+- **Schemas**: `raw`, `stg`, `dim`, `fct`
+- **Raw tables**: `raw.organizations`, `raw.members`, `raw.events`
 
-- ### Event-to-Program Mapping Gap
-    - One thing which is unclear to determine from the event table is which program(s) each issue belongs to, based on the member’s eligible programs and the programs the organization has subscribed to.
+> Context and row samples are captured in Notion (§1–2 **Context / About Data**).
 
-## Conclusion
-- ### Data Quality Observations
-    - Some members appear under multiple organizations, causing **duplication** in downstream fact tables (e.g., `fct_events`).
-    - Organizations may have multiple program combinations over time, leading to **repeated rows** in the members table.
-    - The `event` table does not explicitly indicate which program each event relates to, making program-level analysis **ambiguous**.
+---
 
-- ### Recommendations
-    - **Map employee eligibility in the fact table** to ensure that utilization metrics reflect only those programs for which the members are actually eligible. This helps avoid overcounting events for programs a member is not part of.
-    - Implement a **program-level mapping** for events, linking each event (issue) to the member’s eligible programs and the organization’s subscribed programs. This enables accurate program-specific utilization analysis.
+## Model Overview
 
-- ### Overall
-    - Despite data issues, the **ETL and modeling approach (staging → dimension → fact tables)** is robust.
-    - These factors affect calculations like the **Monthly Utilization Rate**, potentially leading to **overcounting or undercounting** at the organization or province level.
+### Staging (`models/stg/*.sql`)
+- **`stg_organizations`** — Adds `is_active` from `churned_at`; filters non-null `organization_id`.
+- **`stg_members`** — Filters out null `member_id`; preserves attributes for downstream joins.
+- **`stg_events`** — Extracts JSON fields; renames `timestamp` → `event_timestamp`.
 
-## Note 
-- More detailed and technical information can be found at this link with relevant screenshots 
-- https://www.notion.so/Project-Progress-and-Data-Verification-Notes-2685228f921f8022a211cd5b5ac94d17?source=copy_link
+> Transformation details and examples in Notion (§3.1 **Created staging models**).
+
+### Dimensions / Snapshot
+- **`dim_organizations`** — **Incremental** on `loaded_at`; keeps latest state efficiently.
+- **`dim_member_snapshot`** — **SCD2 snapshot** by `province_of_residence` to preserve history for attribution.
+
+> Rationale, example (Ontario → Quebec), and config in Notion (§3.2 **Dimensions / Snapshot**).
+
+### Fact
+- **`fct_events`** — Joins events to the valid member snapshot record (time-bounded) to attribute events to the **right org** and **province** at the event time.
+
+> Join logic, incremental pattern, and validation queries in Notion (§3.3 **Fact models**).
+
+---
+
+## Metrics & Known Caveats
+
+- **Members linked to multiple organizations** can duplicate events in `fct_events`, affecting org-level rates.
+- **Event-to-program mapping gap**: events don’t directly indicate program; requires mapping to org-subscribed and member-eligible programs.
+
+> See Notion (§4–6 **Metric Calculation Challenges / Conclusion**).
+
+---
+
+## Useful Commands
+
+```bash
+# Rebuild a specific model from scratch
+dbt run -s dim_organizations --full-refresh
+
+# Run only facts
+dbt run -s fct_events
+
+# Run + test a focused selection
+dbt run -s stg_events+ && dbt test -s stg_events
+```
+
+---
+
+## Project Hygiene (Best Practices)
+
+- **Naming**: use `stg_`, `dim_`, `fct_` prefixes.
+- **Incrementals & snapshots**: guard with `is_incremental()`; use reliable `loaded_at`/surrogate keys.
+- **Tests**: add `unique`/`not_null` on keys; relationship tests between fact and dimensions.
+- **Docs**: keep rich context (screens, SQL checks) centralized in Notion; keep this README minimal and actionable.
+
+## Limitations & Next Steps
+
+The **Monthly Utilization Rate** metric could not be fully completed due to data integrity issues:
+
+- **Issue**: A single member is associated with multiple organizations.  
+- **Impact**: This creates duplicate enrollments, which inflate or distort the denominator in the utilization calculation.  
+- **Result**: The metric cannot reliably reflect true utilization rates until member–organization mappings are resolved.
+
+> For background, validation checks, and discussion of these issues, see the Notion doc:  
+> [Project Progress and Data Verification Notes](https://www.notion.so/Project-Progress-and-Data-Verification-Notes-2685228f921f8022a211cd5b5ac94d17?source=copy_link)
+
