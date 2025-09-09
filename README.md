@@ -7,8 +7,8 @@
 - Tables - raw.organizations, raw.members & raw.events
 
 # Progress So Far
-- ## **`Created staging models`** - 
-    ### **`stg_organizations.sql`**
+- ## Created staging models - 
+    ### `stg_organizations.sql`
         - Added an extra column **`is_active`**, derived from the `churned_at` field:
             - `is_active = true` when `churned_at` is `null`.
             - `is_active = false` otherwise.
