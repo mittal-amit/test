@@ -63,7 +63,7 @@
 - ### Multiple Programs per Organization
     - There are multiple rows with different program combinations
     - If existing programs were combined, the created_at date might remain the same while the updated_at (or loaded_at) field is updated. This approach facilitates easier analysis when integrating with other datasets.
-        [employee_assistance, mental_health] **and** [primary_care, mental_health, employee_assistance] = [employee_assistance, mental_health, primary_care, mental_health, employee_assistance]
+        `[employee_assistance, mental_health]` **and** `[primary_care, mental_health, employee_assistance]` = `[employee_assistance, mental_health, primary_care, mental_health, employee_assistance]`
 
 - ### Organization–Member Hierarchy
 
