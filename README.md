@@ -3,7 +3,7 @@
 This tasks built with dbt. It focuses on **clean staging**, **incremental dimensions**, an **SCD2 snapshot** on member province, and a **fact table for events** used to compute metrics like Monthly Utilization Rate.
 
 > For screenshots, validation SQL, and deeper notes, see the Notion doc:  
-> **Project Progress and Data Verification Notes** — https://www.notion.so/Project-Progress-and-Data-Verification-Notes-2685228f921f8022a211cd5b5ac94d17?source=copy_link
+> [Project Progress and Data Verification Notes - Notion Link] — https://www.notion.so/Project-Progress-and-Data-Verification-Notes-2685228f921f8022a211cd5b5ac94d17?source=copy_link
 
 ---
 
@@ -16,12 +16,8 @@ This tasks built with dbt. It focuses on **clean staging**, **incremental dimens
 
 **Setup**
 ```bash
-# (optional) create venv
-python -m venv .venv
 # activate it
 source .venv/bin/activate
-# install project deps (pip/poetry as applicable)
-# pip install -r requirements.txt  # or: poetry install
 ```
 
 **Run**
@@ -36,7 +32,7 @@ dbt run -s dim_organizations
 dbt run -s fct_events
 ```
 
-# tests
+# Tests
 A manual testing has been performed which can be found in the Notion doucment with screenshots.
 
 > Detailed test steps and sample SQL are documented in Notion (§3.4 **Testing**).
