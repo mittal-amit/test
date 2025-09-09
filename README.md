@@ -9,10 +9,10 @@
 ## Progress So Far
 - ### Created staging models - 
     #### `stg_organizations.sql`
-        - Added an extra column **`is_active`**, derived from the `churned_at` field:
-            - `is_active = true` when `churned_at` is `null`.
-            - `is_active = false` otherwise.
-        - Ensured `organization_id` is not null to maintain data quality.
+    - Added an extra column **`is_active`**, derived from the `churned_at` field:
+        - `is_active = true` when `churned_at` is `null`.
+        - `is_active = false` otherwise.
+    - Ensured `organization_id` is not null to maintain data quality.
 
     #### `stg_members.sql`
         - Applied a condition to exclude invalid records by filtering out rows where `member_id` is null.
